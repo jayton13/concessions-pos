@@ -9,55 +9,120 @@
   <meta name="theme-color" content="#1e293b" />
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    body { background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
     
-    header { background: #1e293b; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; }
-    header h1 { font-size: 1.2rem; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
+    /* Deep black background */
+    body { 
+      background-color: #09090b; 
+      color: #ffffff; 
+      display: flex; 
+      flex-direction: column; 
+      min-height: 100dvh; 
+      overflow-x: hidden; 
+    }
+    
+    /* Header - Black with Purple Accents */
+    header { 
+      background: #18181b; 
+      padding: 12px 16px; 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      border-bottom: 2px solid #9333ea; 
+      position: sticky; 
+      top: 0; 
+      z-index: 50; 
+    }
+    header h1 { font-size: 1.15rem; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 8px; letter-spacing: 0.5px; }
+    header h1 span.title-accent { color: #c084fc; }
     .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #eab308; display: inline-block; }
     .status-dot.online { background: #22c55e; }
-    .header-btns button { background: #334155; color: #f8fafc; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-left: 6px; cursor: pointer; }
+    .header-btns button { background: #27272a; color: #ffffff; border: 1px solid #3f3f46; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-left: 6px; cursor: pointer; }
+    .header-btns button:active { background: #3f3f46; }
 
+    /* Desktop Layout */
     .container { display: flex; flex: 1; overflow: hidden; }
     .menu-panel { flex: 3; padding: 12px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; align-content: start; }
-    .cart-panel { flex: 2; min-width: 320px; background: #1e293b; border-left: 2px solid #334155; display: flex; flex-direction: column; }
+    .cart-panel { flex: 2; min-width: 320px; background: #121215; border-left: 2px solid #27272a; display: flex; flex-direction: column; }
 
-    .item-btn { background: #334155; border: 2px solid #475569; border-radius: 10px; padding: 14px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; cursor: pointer; user-select: none; transition: transform 0.05s, background-color 0.1s; min-height: 85px; }
-    .item-btn:active { transform: scale(0.96); background: #475569; }
-    .item-name { font-size: 1rem; font-weight: 600; margin-bottom: 4px; color: #fff; }
-    .item-price { font-size: 0.9rem; color: #38bdf8; font-weight: 700; }
+    /* Menu Item Buttons - Dark with Purple Borders */
+    .item-btn { background: #18181b; border: 2px solid #3f3f46; border-radius: 10px; padding: 14px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; cursor: pointer; user-select: none; transition: transform 0.05s, border-color 0.15s, background-color 0.1s; min-height: 80px; }
+    .item-btn:hover { border-color: #a855f7; }
+    .item-btn:active { transform: scale(0.96); background: #27272a; border-color: #c084fc; }
+    .item-name { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; color: #ffffff; }
+    .item-price { font-size: 0.95rem; color: #c084fc; font-weight: 800; }
 
+    /* Cart Section */
     .cart-items { flex: 1; overflow-y: auto; padding: 12px; }
-    .cart-row { display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #334155; }
-    .cart-row-title { font-weight: 600; font-size: 0.95rem; }
+    .cart-row { display: flex; justify-content: space-between; align-items: center; background: #18181b; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #27272a; }
+    .cart-row-title { font-weight: 700; font-size: 0.95rem; color: #ffffff; }
     .cart-controls { display: flex; align-items: center; gap: 8px; }
-    .qty-btn { background: #334155; color: white; border: none; width: 30px; height: 30px; border-radius: 6px; font-weight: bold; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .qty-btn:active { background: #475569; }
+    .qty-btn { background: #27272a; color: #ffffff; border: 1px solid #3f3f46; width: 32px; height: 32px; border-radius: 6px; font-weight: bold; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .qty-btn:active { background: #9333ea; border-color: #9333ea; }
 
-    .cart-bottom { padding: 12px 16px; background: #111827; border-top: 2px solid #334155; }
-    .total-row { display: flex; justify-content: space-between; font-size: 1.4rem; font-weight: 800; margin-bottom: 12px; color: #4ade80; }
+    /* Checkout & Cash Calc */
+    .cart-bottom { padding: 12px 16px 24px 16px; background: #000000; border-top: 2px solid #27272a; }
+    .total-row { display: flex; justify-content: space-between; font-size: 1.4rem; font-weight: 800; margin-bottom: 10px; color: #ffffff; }
+    .total-row span:last-child { color: #c084fc; }
+    
     .tender-presets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 10px; }
-    .tender-btn { background: #1f2937; border: 1px solid #4b5563; color: white; padding: 8px 0; border-radius: 6px; font-weight: 700; font-size: 0.9rem; cursor: pointer; text-align: center; }
-    .tender-btn:active { background: #374151; }
+    .tender-btn { background: #18181b; border: 1px solid #3f3f46; color: #ffffff; padding: 10px 0; border-radius: 6px; font-weight: 700; font-size: 0.9rem; cursor: pointer; text-align: center; }
+    .tender-btn:active { background: #9333ea; border-color: #c084fc; }
+    
     .custom-tender { display: flex; gap: 6px; margin-bottom: 10px; }
-    .custom-tender input { flex: 1; background: #0f172a; border: 1px solid #4b5563; border-radius: 6px; color: white; padding: 8px 12px; font-size: 1rem; text-align: right; }
-    .change-banner { background: #064e3b; border: 1px solid #059669; color: #6ee7b7; padding: 10px; border-radius: 8px; text-align: center; font-size: 1.2rem; font-weight: 800; margin-bottom: 10px; display: none; }
+    .custom-tender input { flex: 1; background: #18181b; border: 1px solid #3f3f46; border-radius: 6px; color: #ffffff; padding: 10px 12px; font-size: 1rem; text-align: right; }
+    .custom-tender input:focus { outline: none; border-color: #a855f7; }
+
+    /* High Visibility Change Box */
+    .change-banner { background: #064e3b; border: 2px solid #10b981; color: #6ee7b7; padding: 10px; border-radius: 8px; text-align: center; font-size: 1.25rem; font-weight: 800; margin-bottom: 10px; display: none; }
+    
     .actions { display: flex; gap: 8px; }
-    .btn-complete { flex: 2; background: #16a34a; border: none; color: white; padding: 14px; border-radius: 8px; font-size: 1.1rem; font-weight: 700; cursor: pointer; }
-    .btn-complete:active { background: #15803d; }
-    .btn-clear { flex: 1; background: #dc2626; border: none; color: white; padding: 14px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+    .btn-complete { flex: 2; background: #9333ea; border: none; color: #ffffff; padding: 14px; border-radius: 8px; font-size: 1.1rem; font-weight: 800; cursor: pointer; transition: background 0.1s; letter-spacing: 0.5px; }
+    .btn-complete:active { background: #7e22ce; }
+    .btn-clear { flex: 1; background: #27272a; border: 1px solid #3f3f46; color: #e4e4e7; padding: 14px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+    .btn-clear:active { background: #3f3f46; }
 
-    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; padding: 16px; z-index: 100; }
+    /* Modals */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); align-items: center; justify-content: center; padding: 16px; z-index: 100; }
     .modal.active { display: flex; }
-    .modal-card { background: #1e293b; border-radius: 12px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; padding: 20px; border: 1px solid #475569; }
-    .modal-card h2 { margin-bottom: 12px; font-size: 1.3rem; }
-    .modal-card textarea { width: 100%; height: 220px; background: #0f172a; color: #fff; border: 1px solid #475569; border-radius: 8px; padding: 10px; font-family: monospace; font-size: 0.85rem; margin-bottom: 12px; }
+    .modal-card { background: #18181b; border-radius: 12px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; padding: 20px; border: 2px solid #9333ea; color: #ffffff; }
+    .modal-card h2 { margin-bottom: 12px; font-size: 1.3rem; color: #c084fc; font-weight: 800; }
+    .modal-card textarea { width: 100%; height: 220px; background: #09090b; color: #ffffff; border: 1px solid #3f3f46; border-radius: 8px; padding: 10px; font-family: monospace; font-size: 0.85rem; margin-bottom: 12px; }
+    .modal-card textarea:focus { outline: none; border-color: #a855f7; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
-    .modal-btn { padding: 8px 16px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; }
+    .modal-btn { padding: 8px 16px; border-radius: 6px; border: none; font-weight: 700; cursor: pointer; }
 
+    /* Mobile Responsive Adjustments */
     @media (max-width: 768px) {
-      .container { flex-direction: column; }
-      .menu-panel { flex: 1; }
-      .cart-panel { flex: none; height: 50vh; border-left: none; border-top: 2px solid #334155; }
+      body {
+        height: auto;
+        min-height: 100dvh;
+        overflow-y: auto;
+      }
+      .container {
+        flex-direction: column;
+        overflow: visible;
+        flex: none;
+      }
+      .menu-panel {
+        flex: none;
+        overflow-y: visible;
+        padding: 10px;
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .cart-panel {
+        flex: none;
+        height: auto;
+        border-left: none;
+        border-top: 3px solid #9333ea;
+        overflow: visible;
+      }
+      .cart-items {
+        max-height: 220px;
+        overflow-y: auto;
+      }
+      .cart-bottom {
+        padding-bottom: 40px;
+      }
     }
   </style>
 
