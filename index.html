@@ -129,6 +129,7 @@
   <!-- Firebase Modular Scripts -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+    // Inside the <script type="module"> block:
     import { 
       getFirestore, 
       collection, 
@@ -139,8 +140,31 @@
       enableIndexedDbPersistence,
       getDocs,
       deleteDoc,
-      doc
+      doc,
+      setDoc // <-- Add setDoc here
     } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+    // ... your firebaseConfig and initializeApp ...
+
+    // Realtime Listener for the shared Menu
+    const menuDocRef = doc(db, "settings", "menuConfig");
+    onSnapshot(menuDocRef, (docSnap) => {
+      if (docSnap.exists() && docSnap.data().items) {
+        window.menu = docSnap.data().items;
+        localStorage.setItem('concessions_menu', JSON.stringify(window.menu));
+        if (typeof window.renderMenu === "function") window.renderMenu();
+        if (typeof window.renderCart === "function") window.renderCart();
+      }
+    });
+
+    // Function to push menu changes to the cloud
+    window.pushMenuToFirebase = async (newMenuItems) => {
+      try {
+        await setDoc(menuDocRef, { items: newMenuItems });
+      } catch (err) {
+        console.error("Error updating shared menu:", err);
+      }
+    };
 
     // --- PASTE YOUR FIREBASE CONFIG HERE ---
     const firebaseConfig = {
@@ -242,13 +266,25 @@
     </div>
   </div>
 
+  <!-- User-Friendly Edit Menu Modal -->
   <div class="modal" id="menuModal">
-    <div class="modal-card">
-      <h2>Edit Menu (JSON)</h2>
-      <textarea id="menuJsonArea"></textarea>
+    <div class="modal-card" style="max-width: 520px;">
+      <h2>Concession Menu Settings</h2>
+      <p style="font-size: 0.85rem; color: #a1a1aa; margin-bottom: 14px;">
+        Add, change prices, or delete items. Saving updates the menu for all connected devices.
+      </p>
+
+      <!-- Scrollable list of items -->
+      <div id="menuEditList" style="max-height: 320px; overflow-y: auto; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;"></div>
+
+      <!-- Add New Item Row -->
+      <button type="button" onclick="addNewMenuItemRow()" style="width: 100%; background: #27272a; border: 1px dashed #a855f7; color: #c084fc; padding: 10px; border-radius: 8px; font-weight: 700; cursor: pointer; margin-bottom: 16px;">
+        + Add New Item
+      </button>
+
       <div class="modal-actions">
-        <button class="modal-btn" style="background:#475569; color:white;" onclick="closeModal('menuModal')">Cancel</button>
-        <button class="modal-btn" style="background:#38bdf8; color:#0f172a;" onclick="saveMenu()">Save Menu</button>
+        <button class="modal-btn" style="background:#27272a; color:#ffffff; border:1px solid #3f3f46;" onclick="closeModal('menuModal')">Cancel</button>
+        <button class="modal-btn" style="background:#9333ea; color:#ffffff;" onclick="saveMenuFromEditor()">Save & Sync Menu</button>
       </div>
     </div>
   </div>
