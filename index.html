@@ -184,7 +184,7 @@
         if (typeof window.renderCart === "function") window.renderCart();
       }
     }, (err) => {
-      console.warn("Menu sync error:", err);
+      console.error("Menu sync error:", err);
     });
 
     window.pushSaleToFirebase = async (sale) => {
