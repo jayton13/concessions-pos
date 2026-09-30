@@ -312,7 +312,13 @@
     window.renderMenu = function() {
       const grid = document.getElementById('menuGrid');
       grid.innerHTML = '';
-      window.menu.forEach(item => {
+      
+      // Sort alphabetically A-Z by name (case-insensitive)
+      const sortedMenu = [...window.menu].sort((a, b) => 
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
+
+      sortedMenu.forEach(item => {
         const btn = document.createElement('div');
         btn.className = 'item-btn';
         btn.innerHTML = `<div class="item-name">${item.name}</div><div class="item-price">$${Number(item.price).toFixed(2)}</div>`;
