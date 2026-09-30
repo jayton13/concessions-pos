@@ -552,10 +552,20 @@
         alert('No sales to export.');
         return;
       }
-      let csv = 'Timestamp,Total\n';
+      
+      let csv = 'Timestamp,Items,Total\n';
       sales.forEach(s => {
-        csv += `"${s.timestamp}",${(s.total || 0).toFixed(2)}\n`;
+        const itemDetails = [];
+        if (s.items) {
+          for (const [id, qty] of Object.entries(s.items)) {
+            const item = window.menu.find(m => m.id == id);
+            itemDetails.push(`${qty}x ${item ? item.name : 'Item ' + id}`);
+          }
+        }
+        const itemsStr = itemDetails.join('; ');
+        csv += `"${new Date(s.timestamp).toLocaleString()}","${itemsStr}",${(s.total || 0).toFixed(2)}\n`;
       });
+
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
