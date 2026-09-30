@@ -546,14 +546,62 @@
       }
     }
 
-    function exportCSV() {
+function exportCSV() {
       const sales = window.globalSales || [];
       if (sales.length === 0) {
         alert('No sales to export.');
         return;
       }
-      
-      let csv = 'Timestamp,Items,Total\n';
+
+      const now = new Date();
+      const reportDate = now.toLocaleDateString();
+      const reportTime = now.toLocaleTimeString();
+
+      // 1. Calculate overall totals
+      const totalRevenue = sales.reduce((sum, s) => sum + (s.total || 0), 0);
+      const totalOrders = sales.length;
+
+      // 2. Aggregate per-item quantities and revenue
+      const itemStats = {};
+      sales.forEach(s => {
+        if (s.items) {
+          for (const [id, qty] of Object.entries(s.items)) {
+            if (!itemStats[id]) {
+              const item = window.menu.find(m => m.id == id);
+              itemStats[id] = {
+                name: item ? item.name : `Item #${id}`,
+                price: item ? item.price : 0,
+                qty: 0
+              };
+            }
+            itemStats[id].qty += qty;
+          }
+        }
+      });
+
+      // Sort items alphabetically for clean reporting
+      const sortedItemStats = Object.values(itemStats).sort((a, b) => 
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
+
+      // 3. Build CSV string
+      let csv = `CONCESSIONS SHIFT REPORT\n`;
+      csv += `Date,"${reportDate} ${reportTime}"\n`;
+      csv += `Total Revenue,$${totalRevenue.toFixed(2)}\n`;
+      csv += `Total Orders,${totalOrders}\n\n`;
+
+      // Item summary section
+      csv += `ITEM BREAKDOWN\n`;
+      csv += `Item Name,Quantity Sold,Total Revenue\n`;
+      sortedItemStats.forEach(item => {
+        const itemRev = item.qty * item.price;
+        csv += `"${item.name}",${item.qty},$${itemRev.toFixed(2)}\n`;
+      });
+
+      // Detailed transaction log section
+      csv += `\nDETAILED TRANSACTION LOG\n`;
+      csv += `Timestamp,Items Purchased,Order Total\n`;
+
       sales.forEach(s => {
         const itemDetails = [];
         if (s.items) {
@@ -563,15 +611,19 @@
           }
         }
         const itemsStr = itemDetails.join('; ');
-        csv += `"${new Date(s.timestamp).toLocaleString()}","${itemsStr}",${(s.total || 0).toFixed(2)}\n`;
+        const timeFormatted = new Date(s.timestamp).toLocaleString();
+        csv += `"${timeFormatted}","${itemsStr}",$${(s.total || 0).toFixed(2)}\n`;
       });
 
-      const blob = new Blob([csv], { type: 'text/csv' });
+      // 4. Trigger download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.setAttribute('href', url);
-      a.setAttribute('download', `concessions_shift_${new Date().toLocaleDateString().replace(/\//g,'-')}.csv`);
+      a.setAttribute('download', `concessions_shift_${reportDate.replace(/\//g, '-')}.csv`);
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
     }
 
     function closeModal(id) {
