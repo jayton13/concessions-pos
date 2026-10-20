@@ -38,19 +38,49 @@
     .header-btns button { background: #27272a; color: #ffffff; border: 1px solid #3f3f46; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-left: 6px; cursor: pointer; }
     .header-btns button:active { background: #3f3f46; }
 
-    /* Desktop Layout */
+    /* Category Bar */
+    .category-bar {
+      display: flex;
+      gap: 6px;
+      padding: 10px 12px 4px 12px;
+      overflow-x: auto;
+      background: #09090b;
+      scrollbar-width: none;
+    }
+    .category-bar::-webkit-scrollbar { display: none; }
+    .cat-pill {
+      background: #18181b;
+      color: #a1a1aa;
+      border: 1px solid #3f3f46;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+    .cat-pill.active {
+      background: #9333ea;
+      color: #ffffff;
+      border-color: #c084fc;
+    }
+
+    /* Main Layout */
     .container { display: flex; flex: 1; overflow: hidden; }
-    .menu-panel { flex: 3; padding: 12px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; align-content: start; }
+    .menu-panel-wrapper { flex: 3; display: flex; flex-direction: column; overflow: hidden; }
+    .menu-panel { flex: 1; padding: 10px 12px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; align-content: start; }
     .cart-panel { flex: 2; min-width: 320px; background: #121215; border-left: 2px solid #27272a; display: flex; flex-direction: column; }
 
-    /* Menu Item Buttons */
+    /* Item Card */
     .item-btn { background: #18181b; border: 2px solid #3f3f46; border-radius: 10px; padding: 14px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; cursor: pointer; user-select: none; transition: transform 0.05s, border-color 0.15s, background-color 0.1s; min-height: 80px; }
     .item-btn:hover { border-color: #a855f7; }
     .item-btn:active { transform: scale(0.96); background: #27272a; border-color: #c084fc; }
     .item-name { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; color: #ffffff; }
     .item-price { font-size: 0.95rem; color: #c084fc; font-weight: 800; }
 
-    /* Cart Section */
+    /* Cart */
     .cart-items { flex: 1; overflow-y: auto; padding: 12px; }
     .cart-row { display: flex; justify-content: space-between; align-items: center; background: #18181b; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #27272a; }
     .cart-row-title { font-weight: 700; font-size: 0.95rem; color: #ffffff; }
@@ -82,7 +112,7 @@
     /* Modals */
     .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); align-items: center; justify-content: center; padding: 16px; z-index: 100; }
     .modal.active { display: flex; }
-    .modal-card { background: #18181b; border-radius: 12px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; padding: 20px; border: 2px solid #9333ea; color: #ffffff; }
+    .modal-card { background: #18181b; border-radius: 12px; width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto; padding: 20px; border: 2px solid #9333ea; color: #ffffff; }
     .modal-card h2 { margin-bottom: 8px; font-size: 1.3rem; color: #c084fc; font-weight: 800; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
     .modal-btn { padding: 8px 16px; border-radius: 6px; border: none; font-weight: 700; cursor: pointer; }
@@ -98,6 +128,10 @@
         flex-direction: column;
         overflow: visible;
         flex: none;
+      }
+      .menu-panel-wrapper {
+        flex: none;
+        overflow: visible;
       }
       .menu-panel {
         flex: none;
@@ -140,13 +174,13 @@
     } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
     // --- PASTE YOUR FIREBASE CONFIG HERE ---
-     const firebaseConfig = {
-      apiKey: "AIzaSyDWwjQv-HNtC7TOpQzZUmngaE-0likR6bQ",
-      authDomain: "concessions-pos-d8e7f.firebaseapp.com",
-      projectId: "concessions-pos-d8e7f",
-      storageBucket: "concessions-pos-d8e7f.firebasestorage.app",
-      messagingSenderId: "762523049509",
-      appId: "1:762523049509:web:be9840b4641276599169cc"
+    const firebaseConfig = {
+      apiKey: "AIzaSyYOUR_API_KEY_HERE",
+      authDomain: "your-project.firebaseapp.com",
+      projectId: "your-project-id",
+      storageBucket: "your-project.appspot.com",
+      messagingSenderId: "123456789",
+      appId: "1:123456789:web:abcdef123456"
     };
     // --------------------------------------
 
@@ -180,11 +214,12 @@
       if (docSnap.exists() && docSnap.data().items) {
         window.menu = docSnap.data().items;
         localStorage.setItem('concessions_menu', JSON.stringify(window.menu));
+        if (typeof window.renderCategories === "function") window.renderCategories();
         if (typeof window.renderMenu === "function") window.renderMenu();
         if (typeof window.renderCart === "function") window.renderCart();
       }
     }, (err) => {
-      console.error("Menu sync error:", err);
+      console.warn("Menu sync error:", err);
     });
 
     window.pushSaleToFirebase = async (sale) => {
@@ -221,7 +256,13 @@
   </header>
 
   <div class="container">
-    <div class="menu-panel" id="menuGrid"></div>
+    <div class="menu-panel-wrapper">
+      <!-- Category Tabs -->
+      <div class="category-bar" id="categoryBar"></div>
+      
+      <!-- Item Buttons Grid -->
+      <div class="menu-panel" id="menuGrid"></div>
+    </div>
 
     <div class="cart-panel">
       <div class="cart-items" id="cartList">
@@ -258,12 +299,12 @@
     </div>
   </div>
 
-  <!-- User-Friendly Menu Settings Modal -->
+  <!-- Menu Settings Modal with Inline Category Dropdowns -->
   <div class="modal" id="menuModal">
     <div class="modal-card">
       <h2>Concession Menu Settings</h2>
       <p style="font-size: 0.85rem; color: #a1a1aa; margin-bottom: 14px;">
-        Add, change prices, or delete items. Saving updates the menu for all connected devices.
+        Assign items to categories, adjust prices, or remove items. Saving syncs with all connected devices.
       </p>
 
       <div id="menuEditList" style="max-height: 320px; overflow-y: auto; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;"></div>
@@ -293,35 +334,63 @@
   </div>
 
   <script>
+    const CATEGORIES = ["Food", "Drinks", "Candy", "Snacks", "Other"];
+    let activeCategory = "All";
+
     const DEFAULT_MENU = [
-      { id: 1, name: "Hot Dog", price: 3.00 },
-      { id: 2, name: "Nachos", price: 3.50 },
-      { id: 3, name: "Popcorn", price: 2.00 },
-      { id: 4, name: "Pretzel", price: 2.50 },
-      { id: 5, name: "Soda / Gatorade", price: 2.00 },
-      { id: 6, name: "Bottled Water", price: 1.50 },
-      { id: 7, name: "Candy Box", price: 2.00 },
-      { id: 8, name: "Chips", price: 1.00 },
-      { id: 9, name: "Pickle", price: 1.00 },
-      { id: 10, name: "Ring Pop", price: 0.50 }
+      { id: 1, name: "Hot Dog", price: 3.00, category: "Food" },
+      { id: 2, name: "Nachos", price: 3.50, category: "Food" },
+      { id: 3, name: "Pretzel", price: 2.50, category: "Food" },
+      { id: 4, name: "Soda / Gatorade", price: 2.00, category: "Drinks" },
+      { id: 5, name: "Bottled Water", price: 1.50, category: "Drinks" },
+      { id: 6, name: "Popcorn", price: 2.00, category: "Snacks" },
+      { id: 7, name: "Chips", price: 1.00, category: "Snacks" },
+      { id: 8, name: "Pickle", price: 1.00, category: "Snacks" },
+      { id: 9, name: "Candy Box", price: 2.00, category: "Candy" },
+      { id: 10, name: "Ring Pop", price: 0.50, category: "Candy" }
     ];
 
     window.menu = JSON.parse(localStorage.getItem('concessions_menu')) || DEFAULT_MENU;
     let cart = {};
 
+    window.renderCategories = function() {
+      const bar = document.getElementById('categoryBar');
+      if (!bar) return;
+      bar.innerHTML = '';
+
+      const allBtn = document.createElement('div');
+      allBtn.className = `cat-pill ${activeCategory === 'All' ? 'active' : ''}`;
+      allBtn.innerText = 'All';
+      allBtn.onclick = () => { activeCategory = 'All'; renderCategories(); renderMenu(); };
+      bar.appendChild(allBtn);
+
+      CATEGORIES.forEach(cat => {
+        const pill = document.createElement('div');
+        pill.className = `cat-pill ${activeCategory === cat ? 'active' : ''}`;
+        pill.innerText = cat;
+        pill.onclick = () => { activeCategory = cat; renderCategories(); renderMenu(); };
+        bar.appendChild(pill);
+      });
+    };
+
     window.renderMenu = function() {
       const grid = document.getElementById('menuGrid');
       grid.innerHTML = '';
-      
-      // Sort alphabetically A-Z by name (case-insensitive)
-      const sortedMenu = [...window.menu].sort((a, b) => 
-        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-      );
 
-      sortedMenu.forEach(item => {
+      const filtered = activeCategory === 'All' 
+        ? [...window.menu] 
+        : window.menu.filter(i => (i.category || 'Other') === activeCategory);
+
+      // Sort Alphabetically
+      filtered.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+      filtered.forEach(item => {
         const btn = document.createElement('div');
         btn.className = 'item-btn';
-        btn.innerHTML = `<div class="item-name">${item.name}</div><div class="item-price">$${Number(item.price).toFixed(2)}</div>`;
+        btn.innerHTML = `
+          <div class="item-name">${item.name}</div>
+          <div class="item-price">$${Number(item.price).toFixed(2)}</div>
+        `;
         btn.onclick = () => addToCart(item.id);
         grid.appendChild(btn);
       });
@@ -427,44 +496,50 @@
       clearCart();
     }
 
-    /* Visual Menu Editor */
-    function openMenuModal() {
-      const container = document.getElementById('menuEditList');
-      container.innerHTML = '';
-
-      window.menu.forEach((item) => {
-        container.appendChild(createItemEditRow(item.name, item.price));
-      });
-
-      document.getElementById('menuModal').classList.add('active');
-    }
-
-    function createItemEditRow(name = '', price = '') {
+    /* Modal Menu Editor */
+    function createItemEditRow(name = '', price = '', category = 'Other') {
       const row = document.createElement('div');
       row.className = 'menu-edit-row';
-      row.style.cssText = "display: flex; gap: 8px; align-items: center; background: #09090b; padding: 8px; border-radius: 8px; border: 1px solid #27272a;";
+      row.style.cssText = "display: flex; gap: 6px; align-items: center; background: #09090b; padding: 8px; border-radius: 8px; border: 1px solid #27272a;";
       
+      const categoryOptions = CATEGORIES.map(c => 
+        `<option value="${c}" ${c === category ? 'selected' : ''}>${c}</option>`
+      ).join('');
+
       row.innerHTML = `
-        <input type="text" class="edit-item-name" placeholder="Item Name (e.g. Popcorn)" value="${name}" 
-          style="flex: 3; background: #18181b; border: 1px solid #3f3f46; border-radius: 6px; color: #fff; padding: 8px 10px; font-size: 0.95rem;">
+        <input type="text" class="edit-item-name" placeholder="Item Name" value="${name}" 
+          style="flex: 3; background: #18181b; border: 1px solid #3f3f46; border-radius: 6px; color: #fff; padding: 8px 10px; font-size: 0.9rem;">
         
-        <div style="flex: 2; display: flex; align-items: center; background: #18181b; border: 1px solid #3f3f46; border-radius: 6px; padding-left: 8px;">
+        <select class="edit-item-cat" style="flex: 2; background: #18181b; border: 1px solid #3f3f46; border-radius: 6px; color: #c084fc; padding: 8px 4px; font-size: 0.85rem; font-weight: 700; outline: none;">
+          ${categoryOptions}
+        </select>
+
+        <div style="flex: 2; display: flex; align-items: center; background: #18181b; border: 1px solid #3f3f46; border-radius: 6px; padding-left: 6px;">
           <span style="color: #c084fc; font-weight: 700;">$</span>
           <input type="number" step="0.25" min="0" class="edit-item-price" placeholder="0.00" value="${price !== '' ? Number(price).toFixed(2) : ''}" 
-            style="width: 100%; background: transparent; border: none; color: #fff; padding: 8px; font-size: 0.95rem; text-align: right; outline: none;">
+            style="width: 100%; background: transparent; border: none; color: #fff; padding: 8px 4px; font-size: 0.9rem; text-align: right; outline: none;">
         </div>
 
         <button type="button" onclick="this.parentElement.remove()" title="Delete Item" 
-          style="background: #27272a; border: 1px solid #ef4444; color: #ef4444; border-radius: 6px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-weight: 800; cursor: pointer; font-size: 1rem;">
+          style="background: #27272a; border: 1px solid #ef4444; color: #ef4444; border-radius: 6px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: 800; cursor: pointer; font-size: 1rem;">
           ✕
         </button>
       `;
       return row;
     }
 
+    function openMenuModal() {
+      const container = document.getElementById('menuEditList');
+      container.innerHTML = '';
+      window.menu.forEach((item) => {
+        container.appendChild(createItemEditRow(item.name, item.price, item.category || 'Other'));
+      });
+      document.getElementById('menuModal').classList.add('active');
+    }
+
     function addNewMenuItemRow() {
       const container = document.getElementById('menuEditList');
-      const row = createItemEditRow('', '');
+      const row = createItemEditRow('', '', activeCategory !== 'All' ? activeCategory : 'Food');
       container.appendChild(row);
       row.querySelector('.edit-item-name').focus();
     }
@@ -477,12 +552,14 @@
       for (const row of rows) {
         const nameInput = row.querySelector('.edit-item-name').value.trim();
         const priceInput = parseFloat(row.querySelector('.edit-item-price').value);
+        const catInput = row.querySelector('.edit-item-cat').value;
 
         if (nameInput) {
           updatedMenu.push({
             id: nextId++,
             name: nameInput,
-            price: isNaN(priceInput) ? 0.00 : priceInput
+            price: isNaN(priceInput) ? 0.00 : priceInput,
+            category: catInput
           });
         }
       }
@@ -499,6 +576,7 @@
         window.pushMenuToFirebase(window.menu);
       }
 
+      renderCategories();
       renderMenu();
       renderCart();
       closeModal('menuModal');
@@ -546,7 +624,7 @@
       }
     }
 
-function exportCSV() {
+    function exportCSV() {
       const sales = window.globalSales || [];
       if (sales.length === 0) {
         alert('No sales to export.');
@@ -557,11 +635,9 @@ function exportCSV() {
       const reportDate = now.toLocaleDateString();
       const reportTime = now.toLocaleTimeString();
 
-      // 1. Calculate overall totals
       const totalRevenue = sales.reduce((sum, s) => sum + (s.total || 0), 0);
       const totalOrders = sales.length;
 
-      // 2. Aggregate per-item quantities and revenue
       const itemStats = {};
       sales.forEach(s => {
         if (s.items) {
@@ -579,18 +655,15 @@ function exportCSV() {
         }
       });
 
-      // Sort items alphabetically for clean reporting
       const sortedItemStats = Object.values(itemStats).sort((a, b) => 
         a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
       );
 
-      // 3. Build CSV string
       let csv = `CONCESSIONS SHIFT REPORT\n`;
       csv += `Date,"${reportDate} ${reportTime}"\n`;
       csv += `Total Revenue,$${totalRevenue.toFixed(2)}\n`;
       csv += `Total Orders,${totalOrders}\n\n`;
 
-      // Item summary section
       csv += `ITEM BREAKDOWN\n`;
       csv += `Item Name,Quantity Sold,Total Revenue\n`;
       sortedItemStats.forEach(item => {
@@ -598,7 +671,6 @@ function exportCSV() {
         csv += `"${item.name}",${item.qty},$${itemRev.toFixed(2)}\n`;
       });
 
-      // Detailed transaction log section
       csv += `\nDETAILED TRANSACTION LOG\n`;
       csv += `Timestamp,Items Purchased,Order Total\n`;
 
@@ -615,7 +687,6 @@ function exportCSV() {
         csv += `"${timeFormatted}","${itemsStr}",$${(s.total || 0).toFixed(2)}\n`;
       });
 
-      // 4. Trigger download
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -630,6 +701,8 @@ function exportCSV() {
       document.getElementById(id).classList.remove('active');
     }
 
+    // Initialize UI on load
+    renderCategories();
     renderMenu();
     renderCart();
   </script>
