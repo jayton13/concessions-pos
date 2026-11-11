@@ -35,7 +35,8 @@
     header h1 { font-size: 1.15rem; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 8px; letter-spacing: 0.5px; }
     .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #eab308; display: inline-block; }
     .status-dot.online { background: #22c55e; }
-    .header-btns button { background: #27272a; color: #ffffff; border: 1px solid #3f3f46; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-left: 6px; cursor: pointer; }
+    .header-btns { display: flex; gap: 6px; }
+    .header-btns button { background: #27272a; color: #ffffff; border: 1px solid #3f3f46; padding: 6px 10px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; }
     .header-btns button:active { background: #3f3f46; }
 
     /* Category Filter Tabs */
@@ -111,7 +112,7 @@
     .qty-btn { background: #27272a; color: #ffffff; border: 1px solid #3f3f46; width: 32px; height: 32px; border-radius: 6px; font-weight: bold; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .qty-btn:active { background: #9333ea; border-color: #9333ea; }
 
-    /* Checkout & Cash Calculation Panel */
+    /* Checkout & Cash Calc */
     .cart-bottom { padding: 12px 16px 24px 16px; background: #000000; border-top: 2px solid #27272a; }
     .total-row { display: flex; justify-content: space-between; font-size: 1.4rem; font-weight: 800; margin-bottom: 10px; color: #ffffff; }
     .total-row span:last-child { color: #c084fc; }
@@ -200,12 +201,12 @@
 
     // --- PASTE YOUR FIREBASE CONFIG HERE ---
     const firebaseConfig = {
-      apiKey: "AIzaSyYOUR_API_KEY_HERE",
-      authDomain: "your-project.firebaseapp.com",
-      projectId: "your-project-id",
-      storageBucket: "your-project.appspot.com",
-      messagingSenderId: "123456789",
-      appId: "1:123456789:web:abcdef123456"
+        apiKey: "AIzaSyDWwjQv-HNtC7TOpQzZUmngaE-0likR6bQ",
+        authDomain: "concessions-pos-d8e7f.firebaseapp.com",
+        projectId: "concessions-pos-d8e7f",
+        storageBucket: "concessions-pos-d8e7f.firebasestorage.app",
+        messagingSenderId: "762523049509",
+        appId: "1:762523049509:web:be9840b4641276599169cc"
     };
     // --------------------------------------
 
@@ -219,7 +220,7 @@
     const salesCol = collection(db, "sales");
     let globalSales = [];
 
-    // Real-time listener: Sales Transactions
+    // Real-time listener: Sales Transactions (Global Sync)
     const q = query(salesCol, orderBy("timestamp", "asc"));
     onSnapshot(q, (snapshot) => {
       document.getElementById('cloudStatus').classList.add('online');
@@ -233,18 +234,49 @@
       document.getElementById('cloudStatus').classList.remove('online');
     });
 
-    // Real-time listener: Shared Cloud Menu
+    // Real-time listener: Shared Menu Items (Global Sync)
+    // Note: Category ordering remains local to each device!
     const menuDocRef = doc(db, "settings", "menuConfig");
     onSnapshot(menuDocRef, (docSnap) => {
       if (docSnap.exists() && docSnap.data().items) {
         window.menu = docSnap.data().items;
         localStorage.setItem('concessions_menu', JSON.stringify(window.menu));
+        
+        // If a new item belongs to a category not in this device's local category list, append it locally
+        let catsUpdated = false;
+        window.menu.forEach(item => {
+          const cat = item.category || 'Other';
+          if (!window.categories.includes(cat)) {
+            window.categories.push(cat);
+            catsUpdated = true;
+          }
+        });
+        if (catsUpdated) {
+          localStorage.setItem('concessions_categories', JSON.stringify(window.categories));
+        }
+
         if (typeof window.renderCategories === "function") window.renderCategories();
         if (typeof window.renderMenu === "function") window.renderMenu();
         if (typeof window.renderCart === "function") window.renderCart();
       }
     }, (err) => {
       console.warn("Menu sync error:", err);
+    });
+
+    // Real-time listener: Starting Cash Float (Global Sync)
+    const shiftDocRef = doc(db, "settings", "shiftConfig");
+    onSnapshot(shiftDocRef, (docSnap) => {
+      if (docSnap.exists() && docSnap.data().startingCash !== undefined) {
+        window.startingCash = Number(docSnap.data().startingCash) || 0;
+      } else {
+        window.startingCash = 0;
+      }
+      localStorage.setItem('concessions_starting_cash', window.startingCash.toString());
+      if (document.getElementById('summaryModal').classList.contains('active')) {
+        window.openSummaryModal();
+      }
+    }, (err) => {
+      console.warn("Shift sync error:", err);
     });
 
     window.pushSaleToFirebase = async (sale) => {
@@ -263,6 +295,14 @@
       }
     };
 
+    window.pushStartingCashToFirebase = async (amount) => {
+      try {
+        await setDoc(shiftDocRef, { startingCash: amount });
+      } catch (err) {
+        console.error("Error updating starting cash:", err);
+      }
+    };
+
     window.clearAllCloudSales = async () => {
       const snap = await getDocs(salesCol);
       const deletions = snap.docs.map(d => deleteDoc(doc(db, "sales", d.id)));
@@ -275,6 +315,7 @@
   <header>
     <h1><span id="cloudStatus" class="status-dot"></span> Concessions POS</h1>
     <div class="header-btns">
+      <button onclick="openCashModal()">Cash Float</button>
       <button onclick="openMenuModal()">Menu</button>
       <button onclick="openSummaryModal()">Live Total</button>
     </div>
@@ -324,15 +365,43 @@
     </div>
   </div>
 
-  <!-- Menu Settings Modal with Inline Category Dropdowns -->
+  <!-- Starting Cash Float Modal -->
+  <div class="modal" id="cashModal">
+    <div class="modal-card" style="max-width: 380px;">
+      <h2>Starting Cash Float</h2>
+      <p style="font-size: 0.85rem; color: #a1a1aa; margin-bottom: 12px;">
+        Enter the initial cash drawer amount (bills and coins). This float is synced across devices and added to shift reconciliation.
+      </p>
+      <div style="display: flex; align-items: center; background: #09090b; border: 1px solid #3f3f46; border-radius: 8px; padding-left: 10px; margin-bottom: 16px;">
+        <span style="color: #c084fc; font-weight: 800; font-size: 1.2rem;">$</span>
+        <input type="number" step="0.25" min="0" id="startingCashInput" placeholder="0.00" 
+          style="width: 100%; background: transparent; border: none; color: #fff; padding: 12px; font-size: 1.2rem; font-weight: 700; text-align: right; outline: none;" />
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn" style="background:#27272a; color:#ffffff; border:1px solid #3f3f46;" onclick="closeModal('cashModal')">Cancel</button>
+        <button class="modal-btn" style="background:#9333ea; color:#ffffff;" onclick="saveStartingCash()">Save Cash Float</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menu Settings & Local Category Reordering Modal -->
   <div class="modal" id="menuModal">
     <div class="modal-card">
-      <h2>Concession Menu Settings</h2>
-      <p style="font-size: 0.85rem; color: #a1a1aa; margin-bottom: 14px;">
-        Assign items to categories, adjust prices, or remove items. Saving syncs with all connected devices.
-      </p>
+      <h2>Concession Menu & Categories</h2>
+      
+      <!-- Category Order Manager (Device-Specific) -->
+      <div style="background: #09090b; border: 1px solid #27272a; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <h3 style="font-size: 0.95rem; color: #c084fc; font-weight: 700;">My Category Order (This Device Only)</h3>
+          <button type="button" onclick="promptAddCategory()" style="background:#27272a; border: 1px solid #3f3f46; color:#c084fc; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; cursor: pointer;">+ New Category</button>
+        </div>
+        <p style="font-size: 0.75rem; color: #a1a1aa; margin-bottom: 8px;">Arrange categories in the order that works best for you without changing other devices.</p>
+        <div id="categoryOrderList" style="display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto;"></div>
+      </div>
 
-      <div id="menuEditList" style="max-height: 320px; overflow-y: auto; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;"></div>
+      <!-- Menu Items Editor (Global Sync) -->
+      <h3 style="font-size: 0.95rem; color: #c084fc; font-weight: 700; margin-bottom: 6px;">Menu Items (Syncs to Everyone)</h3>
+      <div id="menuEditList" style="max-height: 260px; overflow-y: auto; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;"></div>
 
       <button type="button" onclick="addNewMenuItemRow()" style="width: 100%; background: #27272a; border: 1px dashed #a855f7; color: #c084fc; padding: 10px; border-radius: 8px; font-weight: 700; cursor: pointer; margin-bottom: 8px;">
         + Add New Item
@@ -340,7 +409,7 @@
 
       <div class="modal-actions">
         <button class="modal-btn" style="background:#27272a; color:#ffffff; border:1px solid #3f3f46;" onclick="closeModal('menuModal')">Cancel</button>
-        <button class="modal-btn" style="background:#9333ea; color:#ffffff;" onclick="saveMenuFromEditor()">Save & Sync Menu</button>
+        <button class="modal-btn" style="background:#9333ea; color:#ffffff;" onclick="saveMenuFromEditor()">Save Settings</button>
       </div>
     </div>
   </div>
@@ -359,7 +428,8 @@
   </div>
 
   <script>
-    const CATEGORIES = ["Meals", "Entrees", "Sides", "Drinks", "Candy", "Snacks", "Other"];
+    const DEFAULT_CATEGORIES = ["Meals", "Entrees", "Sides", "Drinks", "Candy", "Snacks", "Other"];
+    window.categories = JSON.parse(localStorage.getItem('concessions_categories')) || DEFAULT_CATEGORIES;
     let activeCategory = "All";
 
     const DEFAULT_MENU = [
@@ -379,6 +449,7 @@
     ];
 
     window.menu = JSON.parse(localStorage.getItem('concessions_menu')) || DEFAULT_MENU;
+    window.startingCash = parseFloat(localStorage.getItem('concessions_starting_cash')) || 0;
     let cart = {};
 
     window.renderCategories = function() {
@@ -392,7 +463,7 @@
       allBtn.onclick = () => { activeCategory = 'All'; renderCategories(); renderMenu(); };
       bar.appendChild(allBtn);
 
-      CATEGORIES.forEach(cat => {
+      window.categories.forEach(cat => {
         const pill = document.createElement('div');
         pill.className = `cat-pill ${activeCategory === cat ? 'active' : ''}`;
         pill.innerText = cat;
@@ -405,7 +476,7 @@
       const menuPanel = document.getElementById('menuGrid');
       menuPanel.innerHTML = '';
 
-      const categoriesToShow = activeCategory === 'All' ? CATEGORIES : [activeCategory];
+      const categoriesToShow = activeCategory === 'All' ? window.categories : [activeCategory];
       let itemsFound = 0;
 
       categoriesToShow.forEach(category => {
@@ -444,7 +515,7 @@
       });
 
       if (itemsFound === 0) {
-        menuPanel.innerHTML = '<p style="color: #a1a1aa; text-align: center; margin-top: 40px;">No items in this category.</p>';
+        menuPanel.innerHTML = '<p style="color: #a1a1aa; text-align: center; margin-top: 40px;">No items found.</p>';
       }
     };
 
@@ -548,13 +619,89 @@
       clearCart();
     }
 
-    /* Modal Menu Editor */
+    /* Starting Cash Float Modal */
+    function openCashModal() {
+      document.getElementById('startingCashInput').value = window.startingCash > 0 ? window.startingCash.toFixed(2) : '';
+      document.getElementById('cashModal').classList.add('active');
+    }
+
+    function saveStartingCash() {
+      const val = parseFloat(document.getElementById('startingCashInput').value);
+      const parsed = isNaN(val) ? 0 : val;
+      window.startingCash = parsed;
+      localStorage.setItem('concessions_starting_cash', parsed.toString());
+      if (window.pushStartingCashToFirebase) {
+        window.pushStartingCashToFirebase(parsed);
+      }
+      closeModal('cashModal');
+    }
+
+    /* Modal Menu Editor & Local Category Reordering */
+    let tempCategories = [];
+
+    function openMenuModal() {
+      tempCategories = [...window.categories];
+      renderCategoryOrderList();
+
+      const container = document.getElementById('menuEditList');
+      container.innerHTML = '';
+      window.menu.forEach((item) => {
+        container.appendChild(createItemEditRow(item.name, item.price, item.category || 'Meals'));
+      });
+      document.getElementById('menuModal').classList.add('active');
+    }
+
+    function renderCategoryOrderList() {
+      const list = document.getElementById('categoryOrderList');
+      list.innerHTML = '';
+      tempCategories.forEach((cat, index) => {
+        const row = document.createElement('div');
+        row.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: #18181b; padding: 4px 8px; border-radius: 4px; border: 1px solid #3f3f46;";
+        row.innerHTML = `
+          <span style="font-size: 0.85rem; font-weight: 700; color: #fff;">${cat}</span>
+          <div style="display: flex; gap: 4px;">
+            <button type="button" onclick="moveCategory(${index}, -1)" ${index === 0 ? 'disabled' : ''} style="background: #27272a; border: none; color: #c084fc; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.75rem;">▲</button>
+            <button type="button" onclick="moveCategory(${index}, 1)" ${index === tempCategories.length - 1 ? 'disabled' : ''} style="background: #27272a; border: none; color: #c084fc; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.75rem;">▼</button>
+          </div>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    function moveCategory(index, delta) {
+      const newIndex = index + delta;
+      if (newIndex < 0 || newIndex >= tempCategories.length) return;
+      const item = tempCategories.splice(index, 1)[0];
+      tempCategories.splice(newIndex, 0, item);
+      renderCategoryOrderList();
+      refreshDropdownOptions();
+    }
+
+    function promptAddCategory() {
+      const name = prompt("Enter new category name:");
+      if (name && name.trim()) {
+        const clean = name.trim();
+        if (!tempCategories.includes(clean)) {
+          tempCategories.push(clean);
+          renderCategoryOrderList();
+          refreshDropdownOptions();
+        }
+      }
+    }
+
+    function refreshDropdownOptions() {
+      document.querySelectorAll('.edit-item-cat').forEach(sel => {
+        const currentVal = sel.value;
+        sel.innerHTML = tempCategories.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');
+      });
+    }
+
     function createItemEditRow(name = '', price = '', category = 'Meals') {
       const row = document.createElement('div');
       row.className = 'menu-edit-row';
       row.style.cssText = "display: flex; gap: 6px; align-items: center; background: #09090b; padding: 8px; border-radius: 8px; border: 1px solid #27272a;";
       
-      const categoryOptions = CATEGORIES.map(c => 
+      const categoryOptions = tempCategories.map(c => 
         `<option value="${c}" ${c === category ? 'selected' : ''}>${c}</option>`
       ).join('');
 
@@ -580,23 +727,19 @@
       return row;
     }
 
-    function openMenuModal() {
-      const container = document.getElementById('menuEditList');
-      container.innerHTML = '';
-      window.menu.forEach((item) => {
-        container.appendChild(createItemEditRow(item.name, item.price, item.category || 'Meals'));
-      });
-      document.getElementById('menuModal').classList.add('active');
-    }
-
     function addNewMenuItemRow() {
       const container = document.getElementById('menuEditList');
-      const row = createItemEditRow('', '', activeCategory !== 'All' ? activeCategory : 'Meals');
+      const row = createItemEditRow('', '', activeCategory !== 'All' ? activeCategory : (tempCategories[0] || 'Meals'));
       container.appendChild(row);
       row.querySelector('.edit-item-name').focus();
     }
 
     function saveMenuFromEditor() {
+      // 1. Save Category Order Strictly Locally (Device-Specific)
+      window.categories = [...tempCategories];
+      localStorage.setItem('concessions_categories', JSON.stringify(window.categories));
+
+      // 2. Save Menu Items Globally (Synced via Firebase)
       const rows = document.querySelectorAll('.menu-edit-row');
       const updatedMenu = [];
       let nextId = 1;
@@ -639,6 +782,8 @@
       const sales = window.globalSales || [];
       const totalRevenue = sales.reduce((sum, s) => sum + (s.total || 0), 0);
       const totalOrders = sales.length;
+      const startingFloat = window.startingCash || 0;
+      const expectedDrawer = startingFloat + totalRevenue;
       
       const itemTotals = {};
       sales.forEach(s => {
@@ -658,8 +803,12 @@
       itemsHtml += '</ul>';
 
       const content = `
-        <p><strong>Combined Sales:</strong> $${totalRevenue.toFixed(2)}</p>
-        <p><strong>Total Transactions:</strong> ${totalOrders}</p>
+        <div style="background: #09090b; padding: 12px; border-radius: 8px; border: 1px solid #27272a; margin-bottom: 12px;">
+          <p><strong>Starting Cash Float:</strong> $${startingFloat.toFixed(2)}</p>
+          <p><strong>Concession Sales:</strong> $${totalRevenue.toFixed(2)}</p>
+          <p style="font-size: 1.1rem; color: #4ade80; margin-top: 4px;"><strong>Expected in Cash Box:</strong> $${expectedDrawer.toFixed(2)}</p>
+          <p style="color: #a1a1aa; font-size: 0.85rem; margin-top: 4px;">Total Transactions: ${totalOrders}</p>
+        </div>
         <h3 style="margin-top:12px; font-size:1rem; color:#c084fc;">Total Items Sold Across All Devices:</h3>
         ${itemsHtml}
       `;
@@ -669,7 +818,7 @@
     };
 
     function resetShift() {
-      if (confirm('Are you sure you want to clear the shift database for EVERYONE?')) {
+      if (confirm('Are you sure you want to clear the sales shift database for EVERYONE? (Starting float will be preserved)')) {
         if (window.clearAllCloudSales) {
           window.clearAllCloudSales();
         }
@@ -678,8 +827,8 @@
 
     function exportCSV() {
       const sales = window.globalSales || [];
-      if (sales.length === 0) {
-        alert('No sales to export.');
+      if (sales.length === 0 && window.startingCash === 0) {
+        alert('No data to export.');
         return;
       }
 
@@ -689,6 +838,8 @@
 
       const totalRevenue = sales.reduce((sum, s) => sum + (s.total || 0), 0);
       const totalOrders = sales.length;
+      const startingFloat = window.startingCash || 0;
+      const expectedDrawer = startingFloat + totalRevenue;
 
       const itemStats = {};
       sales.forEach(s => {
@@ -713,7 +864,9 @@
 
       let csv = `CONCESSIONS SHIFT REPORT\n`;
       csv += `Date,"${reportDate} ${reportTime}"\n`;
-      csv += `Total Revenue,$${totalRevenue.toFixed(2)}\n`;
+      csv += `Starting Cash Float,$${startingFloat.toFixed(2)}\n`;
+      csv += `Concession Sales Revenue,$${totalRevenue.toFixed(2)}\n`;
+      csv += `Expected Cash in Drawer,$${expectedDrawer.toFixed(2)}\n`;
       csv += `Total Orders,${totalOrders}\n\n`;
 
       csv += `ITEM BREAKDOWN\n`;
