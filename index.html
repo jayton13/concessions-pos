@@ -432,7 +432,7 @@
 
       <!-- Menu Items Editor (Global Sync) -->
       <h3 style="font-size: 0.95rem; color: #c084fc; font-weight: 700; margin-bottom: 2px;">Menu Items (Syncs to Everyone)</h3>
-      <p style="font-size: 0.75rem; color: #a1a1aa; margin-bottom: 8px;">Left box: Type an emoji (e.g. 🌭) OR an image filename/URL (e.g. nachos.png).</p>
+      <p style="font-size: 0.75rem; color: #a1a1aa; margin-bottom: 8px;">Left box: Emoji or image filename/URL. Tap 👁️ to hide an unavailable item without deleting it.</p>
       <div id="menuEditList" style="max-height: 260px; overflow-y: auto; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;"></div>
 
       <button type="button" onclick="addNewMenuItemRow()" style="width: 100%; background: #27272a; border: 1px dashed #a855f7; color: #c084fc; padding: 10px; border-radius: 8px; font-weight: 700; cursor: pointer; margin-bottom: 8px;">
@@ -465,19 +465,19 @@
     let activeCategory = "All";
 
     const DEFAULT_MENU = [
-      { id: 1, name: "Hot Dog Combo Meal", price: 5.00, category: "Meals", icon: "🌭" },
-      { id: 2, name: "Nacho Combo Meal", price: 5.50, category: "Meals", icon: "🧀" },
-      { id: 3, name: "Hot Dog", price: 3.00, category: "Entrees", icon: "🌭" },
-      { id: 4, name: "Nachos", price: 3.50, category: "Entrees", icon: "🧀" },
-      { id: 5, name: "Pretzel with Cheese", price: 2.50, category: "Sides", icon: "🥨" },
-      { id: 6, name: "Extra Cheese / Chili", price: 0.75, category: "Sides", icon: "🥣" },
-      { id: 7, name: "Soda / Gatorade", price: 2.00, category: "Drinks", icon: "🥤" },
-      { id: 8, name: "Bottled Water", price: 1.50, category: "Drinks", icon: "💧" },
-      { id: 9, name: "Popcorn", price: 2.00, category: "Snacks", icon: "🍿" },
-      { id: 10, name: "Chips", price: 1.00, category: "Snacks", icon: "🥔" },
-      { id: 11, name: "Pickle", price: 1.00, category: "Snacks", icon: "🥒" },
-      { id: 12, name: "Candy Box", price: 2.00, category: "Candy", icon: "🍫" },
-      { id: 13, name: "Ring Pop", price: 0.50, category: "Candy", icon: "🍬" }
+      { id: 1, name: "Hot Dog Combo Meal", price: 5.00, category: "Meals", icon: "🌭", hidden: false },
+      { id: 2, name: "Nacho Combo Meal", price: 5.50, category: "Meals", icon: "🧀", hidden: false },
+      { id: 3, name: "Hot Dog", price: 3.00, category: "Entrees", icon: "🌭", hidden: false },
+      { id: 4, name: "Nachos", price: 3.50, category: "Entrees", icon: "🧀", hidden: false },
+      { id: 5, name: "Pretzel with Cheese", price: 2.50, category: "Sides", icon: "🥨", hidden: false },
+      { id: 6, name: "Extra Cheese / Chili", price: 0.75, category: "Sides", icon: "🥣", hidden: false },
+      { id: 7, name: "Soda / Gatorade", price: 2.00, category: "Drinks", icon: "🥤", hidden: false },
+      { id: 8, name: "Bottled Water", price: 1.50, category: "Drinks", icon: "💧", hidden: false },
+      { id: 9, name: "Popcorn", price: 2.00, category: "Snacks", icon: "🍿", hidden: false },
+      { id: 10, name: "Chips", price: 1.00, category: "Snacks", icon: "🥔", hidden: false },
+      { id: 11, name: "Pickle", price: 1.00, category: "Snacks", icon: "🥒", hidden: false },
+      { id: 12, name: "Candy Box", price: 2.00, category: "Candy", icon: "🍫", hidden: false },
+      { id: 13, name: "Ring Pop", price: 0.50, category: "Candy", icon: "🍬", hidden: false }
     ];
 
     // Load local menu and backfill default icons if upgrading from an older version
@@ -487,6 +487,9 @@
         if (item.icon === undefined) {
           const def = DEFAULT_MENU.find(d => d.name.toLowerCase() === item.name.toLowerCase());
           item.icon = def ? def.icon : "";
+        }
+        if (item.hidden === undefined) {
+          item.hidden = false;
         }
       });
       window.menu = storedMenu;
@@ -550,7 +553,7 @@
 
       categoriesToShow.forEach(category => {
         const items = window.menu
-          .filter(item => (item.category || 'Other') === category)
+          .filter(item => !item.hidden && (item.category || 'Other') === category)
           .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
         if (items.length > 0) {
@@ -585,7 +588,7 @@
       });
 
       if (itemsFound === 0) {
-        menuPanel.innerHTML = '<p style="color: #a1a1aa; text-align: center; margin-top: 40px;">No items found.</p>';
+        menuPanel.innerHTML = '<p style="color: #a1a1aa; text-align: center; margin-top: 40px;">No available items in this category.</p>';
       }
     };
 
@@ -719,7 +722,7 @@
       const container = document.getElementById('menuEditList');
       container.innerHTML = '';
       window.menu.forEach((item) => {
-        container.appendChild(createItemEditRow(item.name, item.price, item.category || 'Meals', item.icon || ''));
+        container.appendChild(createItemEditRow(item.name, item.price, item.category || 'Meals', item.icon || '', Boolean(item.hidden)));
       });
       document.getElementById('menuModal').classList.add('active');
     }
@@ -769,10 +772,25 @@
       });
     }
 
-    function createItemEditRow(name = '', price = '', category = 'Meals', icon = '') {
+    function toggleRowVisibility(btn) {
+      const row = btn.closest('.menu-edit-row');
+      const currentlyHidden = row.dataset.hidden === 'true';
+      const nextHidden = !currentlyHidden;
+      
+      row.dataset.hidden = nextHidden ? 'true' : 'false';
+      row.style.opacity = nextHidden ? '0.5' : '1';
+      
+      btn.innerText = nextHidden ? '🚫' : '👁️';
+      btn.title = nextHidden ? 'Hidden from POS (Tap to Show)' : 'Visible on POS (Tap to Hide)';
+      btn.style.borderColor = nextHidden ? '#eab308' : '#22c55e';
+      btn.style.color = nextHidden ? '#eab308' : '#22c55e';
+    }
+
+    function createItemEditRow(name = '', price = '', category = 'Meals', icon = '', hidden = false) {
       const row = document.createElement('div');
       row.className = 'menu-edit-row';
-      row.style.cssText = "display: flex; gap: 6px; align-items: center; background: #09090b; padding: 8px; border-radius: 8px; border: 1px solid #27272a;";
+      row.dataset.hidden = hidden ? 'true' : 'false';
+      row.style.cssText = `display: flex; gap: 6px; align-items: center; background: #09090b; padding: 8px; border-radius: 8px; border: 1px solid #27272a; opacity: ${hidden ? '0.5' : '1'}; transition: opacity 0.15s;`;
       
       const categoryOptions = tempCategories.map(c => 
         `<option value="${c}" ${c === category ? 'selected' : ''}>${c}</option>`
@@ -795,8 +813,14 @@
             style="width: 100%; background: transparent; border: none; color: #fff; padding: 8px 4px; font-size: 0.9rem; text-align: right; outline: none;">
         </div>
 
+        <button type="button" class="edit-item-hide-btn" onclick="toggleRowVisibility(this)" 
+          title="${hidden ? 'Hidden from POS (Tap to Show)' : 'Visible on POS (Tap to Hide)'}"
+          style="background: #27272a; border: 1px solid ${hidden ? '#eab308' : '#22c55e'}; color: ${hidden ? '#eab308' : '#22c55e'}; border-radius: 6px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; flex-shrink: 0;">
+          ${hidden ? '🚫' : '👁️'}
+        </button>
+
         <button type="button" onclick="this.parentElement.remove()" title="Delete Item" 
-          style="background: #27272a; border: 1px solid #ef4444; color: #ef4444; border-radius: 6px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: 800; cursor: pointer; font-size: 1rem;">
+          style="background: #27272a; border: 1px solid #ef4444; color: #ef4444; border-radius: 6px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: 800; cursor: pointer; font-size: 1rem; flex-shrink: 0;">
           ✕
         </button>
       `;
@@ -805,7 +829,7 @@
 
     function addNewMenuItemRow() {
       const container = document.getElementById('menuEditList');
-      const row = createItemEditRow('', '', activeCategory !== 'All' ? activeCategory : (tempCategories[0] || 'Meals'), '🍿');
+      const row = createItemEditRow('', '', activeCategory !== 'All' ? activeCategory : (tempCategories[0] || 'Meals'), '🍿', false);
       container.appendChild(row);
       row.querySelector('.edit-item-name').focus();
     }
@@ -825,6 +849,7 @@
         const nameInput = row.querySelector('.edit-item-name').value.trim();
         const priceInput = parseFloat(row.querySelector('.edit-item-price').value);
         const catInput = row.querySelector('.edit-item-cat').value;
+        const isHidden = row.dataset.hidden === 'true';
 
         if (nameInput) {
           updatedMenu.push({
@@ -832,7 +857,8 @@
             name: nameInput,
             price: isNaN(priceInput) ? 0.00 : priceInput,
             category: catInput,
-            icon: iconInput
+            icon: iconInput,
+            hidden: isHidden
           });
         }
       }
